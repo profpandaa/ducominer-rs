@@ -1,0 +1,14 @@
+[package]
+name = "mem-eff"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ctrlc = "3.4.5"
+reqwest = { version = "0.12.8", features = ["blocking", "json", "rustls-tls"], default-features = false }
+clap = { version = "4.5.19", features = ["derive"] }
+faster-hex = "0.10.0"
+#sha1_smol = "1.0.1"
+serde = { version = "1.0.210", features = ["derive"] }
+itoa = "1.0.15"
+sha1 = "0.10.7"
