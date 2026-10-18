@@ -1,14 +1,13 @@
+use clap::Parser;
 use faster_hex::hex_decode;
 use serde::Deserialize;
+use sha1::{Digest, Sha1};
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
 use std::string::String;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
-use clap::Parser;
-use sha1::{Digest, Sha1};
-use sha1::digest::FixedOutput;
 
 #[derive(Deserialize)]
 struct PoolData {
@@ -23,7 +22,6 @@ struct PoolData {
 #[derive(Parser, Debug, Clone)]
 #[command(version, about, long_about = None)]
 struct Args {
-	/// Whether the ripe db should be loaded, otherwise the DB process is entirely discarded
 	#[arg(short, long, default_value="")]
 	username: String,
 	#[arg(short, long, default_value="NET")]
@@ -65,7 +63,8 @@ fn start_mining(running: Arc<AtomicBool>, pool: String, port: usize, args: Args)
 	let _ = reader.read_line(&mut resp);
 
 	println!("Running v{resp}");
-
+	let mut buffer = itoa::Buffer::new();
+	let mut dst_buffer = [0u8; 20];
 
 	while running.load(Ordering::Relaxed)
 	{
@@ -86,8 +85,7 @@ fn start_mining(running: Arc<AtomicBool>, pool: String, port: usize, args: Args)
 		let exp_hash = &resp[41..81];
 		let diff = &resp[82..].parse::<usize>().unwrap();
 
-
-		let nonce = mine_sha1(last_hash, exp_hash, diff);
+		let nonce = mine_sha1(last_hash, exp_hash, diff, &mut buffer, &mut dst_buffer);
 		let hash_rate = (1e9 * (nonce as f64 / start.elapsed().as_nanos() as f64)).floor();
 		let send = format!("{nonce},{hash_rate},panda-rs,{ident}");
 		writer.write(send.as_bytes()).expect("Failed to send");
@@ -105,16 +103,12 @@ fn start_mining(running: Arc<AtomicBool>, pool: String, port: usize, args: Args)
 }
 
 
-fn mine_sha1(last_hash: &str, exp_hash: &str, diff: &usize) -> usize
+fn mine_sha1(last_hash: &str, exp_hash: &str, diff: &usize, buffer: &mut itoa::Buffer, exp: &mut [u8]) -> usize
 {
 	let mut hasher = Sha1::new();
 	hasher.update(last_hash);
-	// let exp = hex::decode(exp_hash).unwrap();
-	let mut dst = vec![0; exp_hash.len() / 2];
-	hex_decode(exp_hash.as_ref(), &mut dst).unwrap();
 
-	let exp: &[u8] = &dst;
-	let mut buffer = itoa::Buffer::new();
+	hex_decode(exp_hash.as_ref(), exp).unwrap();
 
 	for nonce in 0..(100*diff + 1)
 	{
