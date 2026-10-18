@@ -682,7 +682,6 @@ dependencies = [
  "clap",
  "ctrlc",
  "faster-hex",
- "itoa",
  "reqwest",
  "serde",
  "sha1",
